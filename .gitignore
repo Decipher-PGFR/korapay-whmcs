@@ -1,0 +1,19 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# WHMCS
+configuration.php
+templates_c/
+attachments/
+downloads/
+
+# Env
+.env
+*.log

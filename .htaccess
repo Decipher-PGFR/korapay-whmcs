@@ -1,0 +1,10 @@
+# HTTPS enforcement for WHMCS
+# Prevents plaintext webhook delivery even if systemurl is misconfigured.
+# Deploy to WHMCS document root alongside init.php.
+
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# HSTS: 6 months. Uncomment once you have confirmed SSL is green on your domain.
+# Header always set Strict-Transport-Security "max-age=15768000; includeSubDomains" env=HTTPS
