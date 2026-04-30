@@ -6,5 +6,13 @@ RewriteEngine On
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
+# Block directory listing
+Options -Indexes
+
+# Block sensitive files if this package is deployed at a web-accessible root.
+<FilesMatch "(^\.|\.env|composer\.(json|lock)|package(-lock)?\.json|SECURITY\.md|CONTRIBUTING\.md|.*\.(bak|backup|orig|log|sql|ini|yml|yaml))$">
+    Require all denied
+</FilesMatch>
+
 # HSTS: 6 months. Uncomment once you have confirmed SSL is green on your domain.
 # Header always set Strict-Transport-Security "max-age=15768000; includeSubDomains" env=HTTPS
