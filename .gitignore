@@ -3,10 +3,12 @@
 .vscode/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # WHMCS
 configuration.php
@@ -14,6 +16,26 @@ templates_c/
 attachments/
 downloads/
 
-# Env
+# Secrets and local configuration
 .env
+.env.*
+*.local
+config.override.php
+config.override.*.php
+secrets.*
+credentials.*
+
+# Logs and runtime output
 *.log
+error_log
+logs/
+tmp/
+
+# Backups
+*.bak
+*.backup
+*.orig
+
+# Dependencies and tooling
+vendor/
+node_modules/
