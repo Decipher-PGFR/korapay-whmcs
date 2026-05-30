@@ -3,9 +3,10 @@
  * WHMCS Payment Gateway integration for Korapay
  *
  * Korapay is the payment processor. This file is the WHMCS integration
- * built and maintained by Decipher Media Solutions LTD.
+ * built and maintained by Decipher Media Solutions LTD for Decipher Hosting.
  * Not affiliated with or endorsed by Korapay. Korapay does not ship an
- * official WHMCS module, so this integration exists to bridge the gap.
+ * official WHMCS module (confirmed 2026-04-16), so this integration
+ * exists to bridge the gap.
  *
  * Flow: Checkout Redirect (hosted). Customer clicks Pay, we initialize a
  * Korapay charge server-to-server (on click, not on page render), then
@@ -16,9 +17,7 @@
  * License:             MIT
  * Version:             1.0.0
  *
- * PCI Scope: SAQ-A. No card data ever touches your servers.
- *
- * @see https://github.com/Decipher-PGFR/korapay-whmcs
+ * PCI Scope: SAQ-A. No card data ever touches our servers.
  */
 
 if (!defined("WHMCS")) {
@@ -35,18 +34,24 @@ function korapay_MetaData()
         "APIVersion"                  => "1.1",
         "DisableLocalCreditCardInput" => true,
         "TokenisedStorage"            => false,
-        "Description"                 => "WHMCS integration for Korapay's hosted checkout. Korapay is the payment processor; this integration is built and maintained by Decipher Media Solutions LTD. NGN only, HMAC-verified webhook, server-side re-verify, exact-amount reconciliation. Not affiliated with or endorsed by Korapay.",
+        // Apps & Integrations panel metadata. Some keys are read by WHMCS 8
+        // to populate the catalog card; others may be ignored by core but
+        // are kept here as authoritative module manifest. Attribution is
+        // intentionally worded so it's clear that Korapay is the payment
+        // processor and Decipher built the WHMCS integration — not the
+        // other way around.
+        "Description"                 => "WHMCS integration for Korapay's hosted checkout. Korapay is the payment processor; this integration is built and maintained by Decipher Media Solutions LTD for Decipher Hosting. NGN only, HMAC-verified webhook, server-side re-verify, exact-amount reconciliation. Not affiliated with or endorsed by Korapay.",
         "IntegrationDeveloper"        => "Decipher Media Solutions LTD",
         "IntegrationDeveloperURL"     => "https://decipher.ng",
         "Category"                    => "Payments",
-        "SupportURL"                  => "https://github.com/Decipher-PGFR/korapay-whmcs/issues",
-        "Author"                      => "Decipher Media Solutions LTD (integration author \u2014 not the payment processor)",
+        "SupportURL"                  => "https://decipher.ng/start/",
+        "Author"                      => "Decipher Media Solutions LTD (integration author — not the payment processor)",
     ];
 }
 
 /**
  * Define gateway configuration fields rendered under
- * Setup > Payments > Payment Gateways > Korapay.
+ * Setup → Payments → Payment Gateways → Korapay.
  */
 function korapay_config()
 {
@@ -67,15 +72,28 @@ function korapay_config()
             "Type"         => "password",
             "Size"         => "64",
             "Default"      => "",
-            "Description"  => "Your Korapay secret key (starts with sk_live_ or sk_test_). Used for server-to-server calls and webhook signature verification.",
+            "Description"  => "Your Korapay secret key (starts with sk_live_ or sk_test_). Used for server-to-server calls.",
         ],
+        // Korapay does NOT issue a separate webhook signing secret.
+        // Per https://developers.korapay.com/docs/webhooks the
+        // x-korapay-signature header is HMAC SHA256 of the `data` object
+        // signed with the merchant's Secret Key. Our callback uses
+        // $secretKey for HMAC verification — no extra config needed.
         "testMode" => [
             "FriendlyName" => "Test Mode",
             "Type"         => "yesno",
             "Description"  => "Tick this when using pk_test_/sk_test_ keys.",
         ],
-        // Exact-amount enforcement is always on in the callback.
-        // No admin toggle \u2014 partial payments are not supported.
+        "referencePrefix" => [
+            "FriendlyName" => "Reference Prefix",
+            "Type"         => "text",
+            "Size"         => "12",
+            "Default"      => "INV-",
+            "Description"  => "Prefix for generated payment references, e.g. INV-. The invoice id and a random token are appended automatically.",
+        ],
+        // S-5: exactAmountOnly toggle removed. Exact-amount enforcement is
+        // always on in the callback. No admin toggle — partial payments are
+        // not a valid use case for this gateway in MVP.
     ];
 }
 
@@ -117,3 +135,10 @@ function korapay_link($params)
 </form>
 HTML;
 }
+
+/* -------------------------------------------------------------------
+ * Refund hook intentionally omitted for MVP.
+ * Refunds for this launch are handled manually via the Korapay dashboard
+ * and then reconciled in WHMCS by the admin. Re-enable when we trust
+ * the automation more fully.
+ * ------------------------------------------------------------------- */

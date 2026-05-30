@@ -1,19 +1,16 @@
 <?php
 /**
- * Korapay Payment Gateway \u2014 Click-through redirect
+ * Korapay Payment Gateway — Click-through redirect
  *
  * Fires when a logged-in client clicks "Pay with Korapay" on an invoice.
  * Verifies session ownership of the invoice, initializes a fresh charge
  * at Korapay server-to-server, and 302s the browser to the hosted
  * checkout URL.
  *
- * Never initializes a charge just from page views \u2014 only on explicit click.
+ * Never initializes a charge just from page views — only on explicit click.
  * Never trusts the POSTed invoice id without checking session ownership.
  *
- * @see https://github.com/Decipher-PGFR/korapay-whmcs
- *
- * Author:  Decipher Media Solutions LTD
- * License: MIT
+ * Author:  Decipher
  * Version: 1.0.0
  */
 
@@ -33,6 +30,7 @@ if (!$gatewayParams["type"]) {
 }
 
 // --- 1. Require logged-in client session ----------------------------
+// WHMCS stores the client id in $_SESSION["uid"] once authenticated.
 if (empty($_SESSION["uid"])) {
     $systemUrl = rtrim($gatewayParams["systemurl"], "/");
     header("Location: " . $systemUrl . "/clientarea.php");
@@ -53,7 +51,9 @@ if (!$invoice) {
     die("Invoice not found");
 }
 
-// Ownership check \u2014 the session's client id MUST match invoice.userid.
+// Ownership check — the session's client id MUST match invoice.userid.
+// Without this, a logged-in client could submit another client's invoice
+// number and we'd create a Korapay charge tied to the wrong account.
 if ((int) $invoice->userid !== $clientId) {
     logTransaction($gatewayModuleName, [
         "reason"    => "session does not own invoice",
@@ -80,7 +80,10 @@ if (!$client) {
 $customerName  = trim($client->firstname . " " . $client->lastname) ?: "Customer";
 $customerEmail = $client->email;
 
-// --- 3b. Currency gate \u2014 Korapay only supports NGN ------------------
+// --- 3b. Currency gate — Korapay only supports NGN ------------------
+// Uses the same tblclients.currency -> tblcurrencies.id join as S-4 in
+// the callback. Refuse to initialize checkout for non-NGN invoices so
+// the customer never pays the wrong amount in the wrong currency.
 $invoiceCurrencyId  = $client->currency ?? 0;
 $invoiceCurrencyRow = Capsule::table("tblcurrencies")
     ->where("id", $invoiceCurrencyId)
@@ -99,7 +102,8 @@ if ($invoiceCurrencyCode !== "NGN") {
 }
 
 // --- 4. Build reference + init call ---------------------------------
-$reference = "DEC-" . $invoiceId . "-" . time() . "-" . substr(bin2hex(random_bytes(4)), 0, 8);
+$refPrefix = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($gatewayParams["referencePrefix"] ?? "")) ?: "INV-";
+$reference = $refPrefix . $invoiceId . "-" . time() . "-" . substr(bin2hex(random_bytes(4)), 0, 8);
 $systemUrl = rtrim($gatewayParams["systemurl"], "/");
 
 $payload = [
@@ -131,6 +135,7 @@ curl_setopt_array($ch, [
     ],
     CURLOPT_TIMEOUT         => 20,
     CURLOPT_CONNECTTIMEOUT  => 10,
+    // S-6: pin SSL verification — never rely on php.ini defaults
     CURLOPT_SSL_VERIFYPEER  => true,
     CURLOPT_SSL_VERIFYHOST  => 2,
 ]);
